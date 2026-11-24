@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sismógrafo IoT - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background-color: #121212;
+        color: #e0e0e0;
+        margin: 0;
+        padding: 20px;
+      }
+      .container {
+        max-width: 1200px;
+        margin: auto;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #333;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+      }
+      h1 {
+        color: #4caf50;
+        margin: 0;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+      }
+      .card {
+        background: #1e1e1e;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      }
+      h2 {
+        color: #bbb;
+        margin-top: 0;
+        font-size: 1.2rem;
+        border-bottom: 1px solid #333;
+        padding-bottom: 10px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        font-size: 0.9rem;
+      }
+      th,
+      td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid #333;
+      }
+      th {
+        color: #4caf50;
+      }
+      .LEVE {
+        color: #4caf50;
+        font-weight: bold;
+      }
+      .MODERADO {
+        color: #ffc107;
+        font-weight: bold;
+      }
+      .FUERTE {
+        color: #f44336;
+        font-weight: bold;
+      }
+
+      .control-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+        color: #aaa;
+        font-weight: bold;
+      }
+      input[type="range"] {
+        width: 100%;
+        cursor: pointer;
+      }
+      .btn-group {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        padding: 10px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        color: white;
+        transition: 0.2s;
+        flex: 1;
+        min-width: 100px;
+        text-decoration: none;
+        text-align: center;
+      }
+      .btn-green {
+        background: #4caf50;
+      }
+      .btn-blue {
+        background: #2196f3;
+      }
+      .btn-red {
+        background: #f44336;
+      }
+      .btn-orange {
+        background: #ff9800;
+      }
+      .btn:hover {
+        opacity: 0.8;
+      }
+      .val-display {
+        float: right;
+        color: #4caf50;
+        font-weight: bold;
+        background: #333;
+        padding: 2px 8px;
+        border-radius: 4px;
+      }
+
+      /* Estilos de Monitoreo */
+      .status-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        font-size: 0.9rem;
+      }
+      .status-item {
+        background: #2a2a2a;
+        padding: 10px;
+        border-radius: 5px;
+        text-align: center;
+      }
+      .status-value {
+        display: block;
+        font-size: 1.2rem;
+        color: #4caf50;
+        font-weight: bold;
+        margin-top: 5px;
+      }
+      .offline {
+        color: #f44336 !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>📡 Sismógrafo IoT (Grupo 8)</h1>
+        <div class="btn-group" style="flex: none">
+          <a href="/api/exportar" class="btn btn-green"> CSV</a>
+          <a href="/logout" class="btn btn-red">Salir</a>
+        </div>
+      </div>
+
+      <div class="grid">
+        <!-- Columna Izquierda: Datos -->
+        <div>
+          <div class="card">
+            <h2> Sismograma en Vivo</h2>
+            <canvas id="grafica" height="100"></canvas>
+          </div>
+          <div class="card">
+            <h2> Historial de Eventos</h2>
+            <table id="tabla-eventos">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Hora</th>
+                  <th>Duración</th>
+                  <th>Vibración</th>
+                  <th>Severidad</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="5" style="text-align: center">
+                    Esperando datos...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Columna Derecha: Controles y Estado -->
+        <div>
+          
+          <div class="card">
+            <h2>📟 Estado del ESP32</h2>
+            <div class="status-grid">
+              <div class="status-item">
+                Conexión
+                <span id="st-online" class="status-value offline">OFFLINE</span>
+              </div>
+              <div class="status-item">
+                Señal Wi-Fi (RSSI)
+                <span id="st-rssi" class="status-value">0 dBm</span>
+              </div>
+              <div class="status-item">
+                Tiempo Encendido
+                <span id="st-uptime" class="status-value">0s</span>
+              </div>
+              <div class="status-item">
+                Memoria Libre
+                <span id="st-mem" class="status-value">0 KB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Controles Remotos</h2>
+            <div class="btn-group" style="margin-bottom: 20px">
+              <button
+                class="btn btn-blue"
+                onclick="enviarComando({ cmd: 'CALIBRAR' })"
+              >
+                Calibrar
+              </button>
+              <button
+                class="btn btn-orange"
+                onclick="enviarComando({ cmd: 'SILENCIAR' })"
+              >
+                Silenciar
+              </button>
+              <button
+                class="btn btn-red"
+                onclick="
+                  enviarComando({ cmd: 'CONFIRMAR_ALARMA', evento_id: 'web' })
+                "
+              >
+                Confirmar
+              </button>
+            </div>
+
+            <div class="control-group">
+              <label
+                >Modo Noche
+                <span class="val-display" id="lbl-modo">OFF</span></label
+              >
+              <button
+                class="btn btn-blue"
+                style="width: 100%"
+                onclick="toggleModoNoche()"
+              >
+                Alternar Modo Noche
+              </button>
+            </div>
+
+            <hr style="border-color: #333; margin: 20px 0" />
+
+            <div class="control-group">
+              <label
+                >Umbral Leve (g):
+                <span class="val-display" id="lbl-uleve">0.15</span></label
+              >
+              <input
+                type="range"
+                min="0.05"
+                max="0.30"
+                step="0.01"
+                value="0.15"
+                oninput="
+                  document.getElementById('lbl-uleve').innerText = this.value
+                "
+                onchange="cambiarUmbral('LEVE', this.value)"
+              />
+            </div>
+            <div class="control-group">
+              <label
+                >Umbral Moderado (g):
+                <span class="val-display" id="lbl-umod">0.35</span></label
+              >
+              <input
+                type="range"
+                min="0.20"
+                max="0.60"
+                step="0.01"
+                value="0.35"
+                oninput="
+                  document.getElementById('lbl-umod').innerText = this.value
+                "
+                onchange="cambiarUmbral('MODERADO', this.value)"
+              />
+            </div>
+            <div class="control-group">
+              <label
+                >Umbral Fuerte (g):
+                <span class="val-display" id="lbl-ufue">0.70</span></label
+              >
+              <input
+                type="range"
+                min="0.50"
+                max="1.50"
+                step="0.01"
+                value="0.70"
+                oninput="
+                  document.getElementById('lbl-ufue').innerText = this.value
+                "
+                onchange="cambiarUmbral('FUERTE', this.value)"
+              />
+            </div>
+            <div class="control-group">
+              <label
+                >Duración Mínima (ms):
+                <span class="val-display" id="lbl-dur">1500</span></label
+              >
+              <input
+                type="range"
+                min="500"
+                max="5000"
+                step="100"
+                value="1500"
+                oninput="
+                  document.getElementById('lbl-dur').innerText = this.value
+                "
+                onchange="cambiarDuracion(this.value)"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // --- 1. GRÁFICA ---
+      const ctx = document.getElementById("grafica").getContext("2d");
+      const chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: "Vibración (g)",
+              data: [],
+              borderColor: "#4CAF50",
+              backgroundColor: "rgba(76, 175, 80, 0.1)",
+              fill: true,
+              tension: 0.3,
+            },
+          ],
+        },
+        options: { animation: false, scales: { y: { beginAtZero: true } } },
+      });
+
+      async function actualizarGrafica() {
+        try {
+          const res = await fetch("/api/datos");
+          if (res.status === 401) window.location.href = "/login";
+          const datos = await res.json();
+          chart.data.labels = datos.map((d) =>
+            new Date(d.ts * 1000).toLocaleTimeString(),
+          );
+          chart.data.datasets[0].data = datos.map((d) => d.vib_g);
+          chart.update();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      // --- 2. TABLA EVENTOS ---
+      async function actualizarTabla() {
+        try {
+          const res = await fetch("/api/eventos");
+          if (res.status === 401) return;
+          const eventos = await res.json();
+          const tbody = document.querySelector("#tabla-eventos tbody");
+          if (eventos.length === 0) return;
+          tbody.innerHTML = "";
+          eventos.forEach((ev) => {
+            tbody.innerHTML += `<tr>
+                        <td><small>${ev[1]}</small></td><td>${new Date(ev[3] * 1000).toLocaleTimeString()}</td>
+                        <td>${ev[4]} ms</td><td>${ev[5].toFixed(2)} g</td>
+                        <td class="${ev[6]}">${ev[6]}</td>
+                    </tr>`;
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      // --- 3. ESTADO DEL DISPOSITIVO (Monitoreo) ---
+      async function actualizarEstado() {
+        try {
+          const res = await fetch("/api/estado");
+          const estado = await res.json();
+
+          const stOnline = document.getElementById("st-online");
+          if (estado.online) {
+            stOnline.innerText = "ONLINE";
+            stOnline.classList.remove("offline");
+          } else {
+            stOnline.innerText = "OFFLINE";
+            stOnline.classList.add("offline");
+          }
+
+          document.getElementById("st-rssi").innerText = estado.rssi + " dBm";
+          // Formatear uptime
+          let h = Math.floor(estado.uptime_s / 3600);
+          let m = Math.floor((estado.uptime_s % 3600) / 60);
+          let s = estado.uptime_s % 60;
+          document.getElementById("st-uptime").innerText = `${h}h ${m}m ${s}s`;
+          // Formatear memoria
+          document.getElementById("st-mem").innerText =
+            (estado.mem_free / 1024).toFixed(1) + " KB";
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      // --- 4. CONTROLES ---
+      let modoNocheActivo = false;
+      async function enviarComando(jsonData) {
+        try {
+          const res = await fetch("/api/comando", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(jsonData),
+          });
+          const result = await res.json();
+          if (result.status === "ok") console.log("Enviado:", jsonData);
+          else alert("Error: " + result.msg);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      function toggleModoNoche() {
+        modoNocheActivo = !modoNocheActivo;
+        document.getElementById("lbl-modo").innerText = modoNocheActivo
+          ? "ON"
+          : "OFF";
+        enviarComando({ cmd: "SET_MODO_NOCHE", valor: modoNocheActivo });
+      }
+      function cambiarUmbral(nivel, valor) {
+        enviarComando({
+          cmd: "SET_UMBRAL",
+          nivel: nivel,
+          valor: parseFloat(valor),
+        });
+      }
+      function cambiarDuracion(valor) {
+        enviarComando({ cmd: "SET_DURACION", ms: parseInt(valor) });
+      }
+
+      // Iniciar
+      setInterval(actualizarGrafica, 2000);
+      setInterval(actualizarTabla, 5000);
+      setInterval(actualizarEstado, 3000);
+      actualizarGrafica();
+      actualizarTabla();
+      actualizarEstado();
+    </script>
+  </body>
+</html>
